@@ -1,4 +1,4 @@
-# 🛡️ LiderAhenk — Yapay Zeka Destekli Uyum ve Güvenlik Yönetimi Yaması
+# 🛡️ LiderBekci — Yapay Zeka Destekli Uyum ve Güvenlik Yönetimi Yaması
 
 <div align="center">
 
@@ -270,8 +270,8 @@ Evidence Service (Port 5000) tarafından sunulan REST endpointleri:
 ### Hızlı Başlangıç (Tek Komut)
 
 ```bash
-git clone https://github.com/aliozen0/liderui.git
-cd liderui
+git clone https://github.com/aliozen0/lider-bekci.git
+cd lider-bekci
 chmod +x start_demo.sh
 ./start_demo.sh
 ```
@@ -433,7 +433,7 @@ Bu proje LiderAhenk lisansı altında sunulmaktadır. Detaylar için [LICENSE](l
 
 <div align="center">
 
-**Hackathon 2026 — Pardus LiderAhenk Siber Güvenlik Yaması**
+**Hackathon 2026 — Pardus LiderBekci Siber Güvenlik Yaması**
 
 *Mevcut sisteme dokunmadan, yapay zeka ile güvenlik görünürlüğü kazandırın.*
 
