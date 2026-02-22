@@ -39,7 +39,7 @@ Kurumsal ağlarda yüzlerce, hatta binlerce Pardus istemci yönetilmektedir. Mev
 - **Kanıta dayalı denetim alt yapısı yoktur.** Güvenlik olayları loglanmaz, denetim raporları oluşturulamaz.
 - **Uyum skoru ve trend analizi yoktur.** Kurumun genel güvenlik duruşu (security posture) zaman içinde ölçülemez.
 
-Bu eksiklikler, özellikle **kamu kurumları, üniversiteler, bankalar ve kritik altyapı** yöneten kuruluşlar için ciddi denetim ve uyumluluk riskleri oluşturmaktadır.
+Bu eksiklikler, özellikle **kamu kurumları, üniversiteler, bankalar, askeri birimler, savunma sanayi ve kritik altyapı** yöneten kuruluşlar için ciddi denetim ve uyumluluk riskleri oluşturmaktadır.
 
 ---
 
@@ -73,6 +73,43 @@ Bu yama, mevcut LiderAhenk sistemine **dokunmadan**, yanına iki bileşen ekleye
 | **Denetçiler (Auditor)** | Politika uyum raporları, kanıt logları, zaman damgalı denetim kaydı |
 | **KVKK / ISO 27001 Sorumluları** | Uyumluluk oranları, ihlal takibi, düzeltme izleme |
 | **Kamu BT Yöneticileri** | Pardus dağıtımlarında merkezi güvenlik görünürlüğü |
+| **Askeri / Savunma Sanayi** | NATO/TSK uyumluluk denetimi, gizlilik seviyeli ağlarda cihaz kontrolü |
+| **Kritik Altyapı Operatörleri** | Enerji, telekomünikasyon, ulaşım sistemlerinde uç nokta güvenliği |
+
+---
+
+## 🎖️ Askeri ve Savunma Sanayi Kullanım Senaryoları
+
+Bu yama, özellikle **askeri birimler, savunma sanayi kuruluşları ve kritik altyapı operatörleri** için yüksek değer taşır:
+
+### Neden Kritik?
+
+- **Gizlilik Seviyeli Ağlar:** Askeri ve savunma sanayi ağlarında yetkisiz bir USB cihazının takılması, gizli bilgilerin sızmasına yol açabilir. ML tabanlı anomali tespiti bu riski **otomatik ve gerçek zamanlı** olarak ortadan kaldırır.
+- **NATO/TSK Uyumluluk Gereksinimleri:** Savunma sanayi kuruluşları, uç nokta güvenliği ve cihaz kontrolü konusunda sıkı denetim standartlarına tabidir. Bu yama, kanıta dayalı uyum raporları ile denetim süreçlerini otomatikleştirir.
+- **Kapalı Devre (Air-gapped) Ağ Uyumu:** Sistem tamamen yerel ağda çalışır, dış bağlantı gerektirmez — kapalı devre askeri ağlarda dahi kullanılabilir.
+- **Tedarik Zinciri Güvenliği:** Savunma projelerinde kullanılan bilgisayarlardaki donanım değişiklikleri ML ile otomatik tespit edilir; tedarik zinciri saldırılarına karşı erken uyarı sağlanır.
+
+### Örnek Senaryo: Askeri Üs
+
+```
+1. 500+ Pardus istemci askeri üs ağında yönetiliyor
+2. Bir personel yetkisiz USB bellek takıyor → ML API anında anomali tespit ediyor
+3. Sonuç şifreli kanal üzerinden Lider sunucusuna iletiliyor
+4. Güvenlik görevlisi Dashboard'dan ❌ ANOMALOUS uyarısını canlı görüyor
+5. İlgili istemci otomatik olarak "non_compliant" işaretleniyor
+6. Tüm olay kanıt loglarına zaman damgalı olarak kaydediliyor
+7. Denetim raporunda bu olay belgeleniyor → NATO standardına uyum sağlanıyor
+```
+
+### Uyumlu Olduğu Standartlar
+
+| Standart | İlgili Kontrol |
+|---|---|
+| **ISO 27001** | A.8 (Varlık Yönetimi), A.11 (Fiziksel Güvenlik) |
+| **NATO STANAG** | Uç nokta güvenliği ve cihaz kontrolü |
+| **KVKK** | Kişisel veri içeren sistemlerde erişim kontrolü |
+| **TSE ISO/IEC 27002** | Taşınabilir ortam yönetimi, güvenlik izleme |
+| **5651 Sayılı Kanun** | Log tutma ve denetim yükümlülükleri |
 
 ---
 
@@ -314,12 +351,61 @@ Tarayıcıda `http://localhost:8081` → Sol menüde **"Uyum Yönetimi"** sekmes
 
 ---
 
+## 🧩 Kullanılan Tasarım Desenleri (Design Patterns)
+
+Bu yama, mevcut Java monoliti ile yeni Python mikroservisi arasında temiz bir entegrasyon sağlamak için bilinçli olarak yazılım tasarım desenleri (design patterns) kullanır:
+
+### 1. Adapter Pattern (Adaptör Deseni)
+
+Mevcut LiderAhenk'in **Java/MySQL** veritabanı şeması ile yeni **Python/SQLite** modeli arasında veri dönüşümü yapılır. `lider_sync.py` dosyası bu adaptörün kalbidir:
+
+```
+┌─────────────────────────┐          ┌──────────────────────────┐
+│  LiderAhenk MySQL       │          │  Evidence Service SQLite │
+│  (Java Monolith DB)     │  Adapter │  (Python Microservice)   │
+│  ─────────────────────  │ ───────► │  ──────────────────────  │
+│  c_agent                │          │  Client                  │
+│  c_agent_user_session   │          │  PolicyDefinition        │
+│  c_policy               │          │  EvidenceLog             │
+└─────────────────────────┘          └──────────────────────────┘
+```
+
+**`lider_sync.py`** — Java'nın `c_agent`, `c_agent_user_session`, `c_policy` tablolarını okuyarak Python SQLAlchemy modeline (`Client`, `PolicyDefinition`) dönüştürür. Bu sayede:
+- Java monolitinin veritabanı şemasına bağımlı kalmadan kendi modelimizle çalışırız
+- LiderAhenk'in kaynak kodu değiştirilmeden veri akışı sağlanır
+- Periyodik senkronizasyon (15 sn) ile veriler güncel tutulur
+
+### 2. Proxy Pattern (Vekil Deseni)
+
+**`vue.config.js`** — Frontend tek bir origin üzerinden çalışırken, arka planda iki farklı servise yönlendirme yapar:
+
+```
+/api/compliance/*  →  Python FastAPI (:5000)   [Yeni servis]
+/api/*             →  Java Tomcat (:8080)      [Mevcut LiderAhenk]
+```
+
+Bu proxy yapısı sayesinde frontend, iki farklı backend'i **tek bir API gateway** üzerinden tüketir.
+
+### 3. Strategy Pattern (Strateji Deseni)
+
+**`ComplianceService.js`** — `USE_MOCK_DATA` flag'i ile gerçek API ve mock veri kaynağı arasında çalışma zamanında geçiş yapılır. Bu sayede:
+- Backend olmadan frontend geliştirmesi yapılabilir
+- Demo ortamında sahte veri ile sunum yapılabilir
+- Gerçek ortama geçişte tek satır değişiklik yeterlidir
+
+### 4. Observer Pattern (Gözlemci Deseni)
+
+**Canlı Dashboard** — Frontend, 2 saniyede bir Evidence Service'i polling yaparak yeni logları algılar ve dashboard metriklerini otomatik günceller. Yeni bir ML raporu geldiğinde tüm grafikler ve tablolar sıfır yenileme ile güncellenir.
+
+---
+
 ## 🔑 Güvenlik Özellikleri
 
 - **Fernet Simetrik Şifreleme:** ML API yanıtları şifreli transfer edilir
 - **CORS Koruması:** Evidence Service yapılandırılabilir CORS politikası sunar
 - **Lider MySQL Senkronizasyonu:** Agent verileri periyodik olarak (15 sn) senkronize edilir
 - **Otonom Çalışma:** Evidence Service bağımsız çalışır; LiderAhenk API çökse bile uyum verileri kaybolmaz
+- **Kapalı Devre Uyumu:** Tüm sistem yerel ağda çalışır, dış internet bağlantısı gerektirmez
 
 ---
 
